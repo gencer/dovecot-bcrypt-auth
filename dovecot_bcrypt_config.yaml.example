@@ -1,0 +1,15 @@
+driver: mysql
+connection:
+    database:   database
+    host:       localhost
+    port: 
+userCredentials:
+    username:   dbuser
+    password:   dbpasswd
+queryParameters:
+    query:      'SELECT password FROM ? WHERE username = ?'
+    table:      users
+shellVariables:
+    userdb_uid:  vmail
+    userdb_gid:  vmail
+    home:        /var/run/mail/domain
