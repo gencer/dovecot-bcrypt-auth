@@ -8,6 +8,9 @@ use IO::Handle;
 use Unix::Syslog;
 use YAML::XS;
 
+# Change this to suit your needs
+my $configuration = $ENV{PWD} . '/dovecot_bcrypt_config.yaml';
+
 # Based off of http://cr.yp.to/checkpwd/interface.html
 # There are some pre-defined response messages that checkpassword will expect to receive.
 my ($respOk, $respUnacceptable, $respMisused, $respTempFailure) = (0, 1, 2, 111);
@@ -22,7 +25,7 @@ sub auth
     # a query and grab the users stored password, 
     my ($clearUsername, $clearPassword) = @_;
 
-    my $config        = &getConfig;
+    my $config        = &getConfig($configuration);
     my $dbc           = &dbConnect($config);
     my $hash          = &dbQuery($dbc, $config, $clearUsername);
     my @processedHash = &bcryptExtract($hash);
@@ -176,7 +179,6 @@ sub getConfig
     $ENV{userdb_gid} = $config->{shellVariables}->{userdb_gid};
     $ENV{HOME}       = $config->{shellVariables}->{home};
     
-
     return $config;
 }
 
