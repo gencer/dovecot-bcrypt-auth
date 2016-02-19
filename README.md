@@ -27,4 +27,20 @@ userdb {
     driver = static
     args   = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n
 }
+
+userdb {
+    driver = sql
+    args   = /etc/dovecot/dovecot-sql.conf.ext
+}
 ```
+
+Then in `/etc/dovecot/dovecot-sql.conf.ext`, you'll need something like the following:
+
+```
+driver  mysql
+connect = host=localhost dbname=database user=dbuser password=dbpassword
+user_query  = SELECT 5000 as uid, 5000 as gid, email as user FROM virtual_users WHERE email='%u';
+```
+
+The `SELECT 5000 as uid, 5000 as gid` part of the query is the uid and gid of the virtual user (the user you
+created for /var/mail/vhosts or similar).
