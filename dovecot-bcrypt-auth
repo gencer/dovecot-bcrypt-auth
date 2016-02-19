@@ -41,7 +41,6 @@ sub auth
 
     my $config        = new BasedYAMLConfig($configuration);
     my $yaml          = $config->getConfig();
-    $config->setEnv($clearUsername, $yaml);
 
     my $database      = new AccessDatabase($yaml, $clearUsername, $clearPassword);
     my $dbc           = $database->dbConnect();
@@ -72,16 +71,18 @@ sub scrubRawInput
 ###########
 ####~~~ MAIN EXECUTION
 ###########
-# We need to open a filehandler (descriptor 3). Username, Password and timestamp are
-# provided in it each seperated with a '\0'.
-my $fhIn  = IO::Handle->new();
-my $fhErr = IO::Handle->new();
+# We need to open a filehandler (descriptor 3). Username and password are provided in fd3. Each field
+# is seperated by a break '\0'.
+my $fhIn  = new IO::Handle();
+my $fhErr = new IO::Handle();
+my $fhOut = new IO::Handle();
 
 $fhIn->fdopen(3, "r");
-$fhErr->fdopen(fileno(STDERR), "w");
+$fhOut->fdopen(4, "w");
+$fhErr->fdopen(2, "w");
 
-if ( ($fhIn->opened) && ($fhErr->opened) ) {
-    # Read in from file descriptor 3.
+if ( ($fhIn->opened) && ($fhErr->opened) && ($fhOut->opened)) {
+    # Read in from file descriptor 3 and make the data useable.
     $fhIn->read(my $rawInput, 512);
     my @authData = split(/\0/, $rawInput);
 
@@ -93,13 +94,34 @@ if ( ($fhIn->opened) && ($fhErr->opened) ) {
     # Now we can see if the username + password combo is authentic. We'll check those against
     # the subroutines defined above.
     my $authResponse = &auth(@authData);
+
+    # The user looks legitimate. We'll write our return values to fd4.
     if ($authResponse == $respOk) {
-        $ENV{AUTHORIZED} = 2;
-        system($ARGV[0]);
+        $fhOut->autoflush(1);
+
+        # Generate all of the fields from our config file + 'username' field.
+        my $config = new BasedYAMLConfig($configuration);
+        my $yaml   = $config->getConfig();
+        my @envArr = $config->setEnv($yaml, $authData[0]);
+
+        # Join the array into a single string seperated by '\t'.
+        my $envVar = '';
+
+        foreach my $i (@envArr) {
+            $envVar .= "$i\t";
+        }
+
+        # Finally we push the parameters out to fd4.
+        $fhOut->print($envVar);
     } else {
         exit($respUnacceptable);
     }
 } else {
     exit($respMisused);
 }
+
+# Cleaning up
+$fhIn->close if $fhIn->opened;
+$fhOut->close if $fhOut->opened;
+$fhErr->close if $fhErr->opened;
 
