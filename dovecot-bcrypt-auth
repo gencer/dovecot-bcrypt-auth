@@ -1,0 +1,105 @@
+#!/usr/bin/env perl
+# Author: Daniel "brushdemon" Kicsak <dkicsak@gmail.com>
+#         Patrick "tyil" Spek        <p.spek@tyil.nl>
+# Version: 0.1
+# License: GPLv3
+
+package DovecotBcryptAuth;
+
+use strict;
+use warnings;
+
+# Change this to suit your needs
+my $configuration = '/home/brushdemon/dovecot-bcrypt-auth/dovecot_bcrypt_config.yaml';
+
+# Based in http://cr.yp.to/checkpwd/interface.html recommendations
+# There are some pre-defined response messages that checkpassword will expect to receive.
+our ($respOk, $respUnacceptable, $respMisused, $respTempFailure) = (0, 1, 2, 111);
+
+use FindBin;
+use lib $FindBin::Bin;
+use lib $FindBin::Bin . '/lib';
+use AccessDatabase;
+use BcryptDecipher;
+use BasedYAMLConfig;
+
+use Data::Dumper;
+use IO::Handle;
+use Path::Class;
+use Unix::Syslog;
+
+sub auth
+{
+    ## Expects: The username and password from the dovecot IO file desriptor.
+    # Uses all of the subroutines to sanitize the username and password, connect to the database, formulate
+    # a query and grab the users stored password, 
+    my (
+        $clearUsername,
+        $clearPassword
+    ) = @_;
+
+
+    my $config        = new BasedYAMLConfig($configuration);
+    my $yaml          = $config->getConfig();
+    $config->setEnv($clearUsername, $yaml);
+
+    my $database      = new AccessDatabase($yaml, $clearUsername, $clearPassword);
+    my $dbc           = $database->dbConnect();
+    my $hash          = $database->dbQuery($dbc);
+
+    my $bcrypt        = new BcryptDecipher($hash, $clearPassword);
+    my @processedHash = $bcrypt->bcryptExtract();
+    my $newHash       = $bcrypt->bcryptEncrypt(@processedHash);
+
+    if ( $bcrypt->bcryptCompare($newHash, $hash) == 0 ) {
+        exit($respUnacceptable);
+    }
+}
+
+sub scrubRawInput
+{
+    ## Expects: The username and password
+    # Removes any 'dangerous' characters from the username and password which may cause SQL injection.
+    my $username = shift;
+    my $password = shift;
+
+    $username =~ s/[."\n\r'\$\\`]//g;
+    $password =~ s/[."\n\r'\$\\`]//g;
+
+    return ($username, $password);
+}
+
+###########
+####~~~ MAIN EXECUTION
+###########
+# We need to open a filehandler (descriptor 3). Username, Password and timestamp are
+# provided in it each seperated with a '\0'.
+my $fhIn  = IO::Handle->new();
+my $fhErr = IO::Handle->new();
+
+$fhIn->fdopen(3, "r");
+$fhErr->fdopen(fileno(STDERR), "w");
+
+if ( ($fhIn->opened) && ($fhErr->opened) ) {
+    # Read in from file descriptor 3.
+    $fhIn->read(my $rawInput, 512);
+    my @authData = split(/\0/, $rawInput);
+
+    # We will see only 2 params. Check the number of items in the @authData array.
+    if ( scalar(@authData) != 2 ) {
+        exit($respMisused);
+    }
+
+    # Now we can see if the username + password combo is authentic. We'll check those against
+    # the subroutines defined above.
+    my $authResponse = &auth(@authData);
+    if ($authResponse == $respOk) {
+        $ENV{AUTHORIZED} = 2;
+        system($ARGV[0]);
+    } else {
+        exit($respUnacceptable);
+    }
+} else {
+    exit($respMisused);
+}
+
