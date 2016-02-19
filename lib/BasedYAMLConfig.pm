@@ -31,28 +31,28 @@ sub getConfig
 
 sub setEnv
 {
-    ## Expects: The YAML object ($self) and the domain username.
-    # Set the necessary fields to make this script compliant with the checkpassword API
+    ## Expects: The YAML object ($self), the domain name and the yaml object.
+    # Prepare an array for writing to file descript 4. This will include:
+    #   - userdb_uid        - userdb_gid        - userdb_home
+    #   - AUTHENTICATED     - HOME              - EXTRA
     my $self         = shift;
-    my $userString   = shift;
     my $config       = shift;
+    my $userString   = shift;
+    my @return;
+
     my ($username, $domain) = split('@', $userString);
+    my $userdb_uid    = $config->{shellVariables}->{userdb_uid};
+    my $userdb_gid    = $config->{shellVariables}->{userdb_gid};
+    my $userdb_home   = $config->{shellVariables}->{home};
 
-    # We're using virtual domains. Each virtual user should have a HOME under /var/mail/{domain}/{username}
-    $ENV{HOME}       = $config->{shellVariables}->{home} .
-                        '/' . $domain . '/' . $username;
+    push(@return, 'userdb_uid='  . $userdb_uid);
+    push(@return, 'userdb_gid='  . $userdb_gid);
+    push(@return, 'userdb_home=' . $userdb_home);
+    push(@return, 'HOME='        . $userdb_home);
+    push(@return, 'EXTRA="userdb_uid userdb_gid userdb_home"');
+    push(@return, 'AUTHENTICATED=2');
 
-    # Set the mail users uid and gid. We add these values to $ENV{EXTRA}
-    my $userdb_uid   = $config->{shellVariables}->{userdb_uid};
-    my $userdb_gid   = $config->{shellVariables}->{userdb_gid};
-    $ENV{userdb_uid} = $userdb_uid;
-    $ENV{userdb_gid} = $userdb_gid;
-    $ENV{EXTRA}      = $userdb_uid . ' ' .  $userdb_gid;
-
-    # Lastly we need to acknowledge that this script is 'authentic' by changing $ENV{AUTHORIZED} to '2'
-    #$ENV{AUTHORIZED} = 2;
-
-    return 1;
+    return @return;
 }
 
 1;
