@@ -12,4 +12,4 @@ queryParameters:
 shellVariables:
     userdb_uid:  vmail
     userdb_gid:  vmail
-    home:        /var/run/mail/domain
+    home:        /var/mail/vhosts
