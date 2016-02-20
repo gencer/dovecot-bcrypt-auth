@@ -10,6 +10,6 @@ queryParameters:
     query:      'SELECT password FROM ? WHERE username = ?'
     table:      users
 shellVariables:
-    userdb_uid:  vmail
-    userdb_gid:  vmail
+    userdb_uid:  5000
+    userdb_gid:  5000
     home:        /var/mail/vhosts
