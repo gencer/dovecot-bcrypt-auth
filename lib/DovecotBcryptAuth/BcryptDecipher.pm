@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-package BcryptDecipher;
+package DovecotBcryptAuth::BcryptDecipher;
 
 use strict;
 use warnings;

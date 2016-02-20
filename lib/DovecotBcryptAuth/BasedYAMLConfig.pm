@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-package BasedYAMLConfig;
+package DovecotBcryptAuth::BasedYAMLConfig;
 
 use strict;
 use warnings;
