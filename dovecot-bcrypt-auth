@@ -10,48 +10,58 @@ use strict;
 use warnings;
 
 # Change this to suit your needs
-my $configuration = '/home/brushdemon/dovecot-bcrypt-auth/dovecot_bcrypt_config.yaml';
+our $configuration = '/home/brushdemon/dovecot-bcrypt-auth/etc/dovecot_bcrypt_config.yaml';
 
-# Based in http://cr.yp.to/checkpwd/interface.html recommendations
-# There are some pre-defined response messages that checkpassword will expect to receive.
-our ($respOk, $respUnacceptable, $respMisused, $respTempFailure) = (0, 1, 2, 111);
+# Based on http://cr.yp.to/checkpwd/interface.html recommendations.
+# These are return codes that the checkpassword API knows how to handle.
+our %RESPONSE = (
+    ok           => 0,
+    unacceptable => 1,
+    misused      => 2,
+    tempFailue   => 111
+);
 
+# Find an load dovecot-bcrypt-auth modules
 use FindBin;
 use lib $FindBin::Bin;
 use lib $FindBin::Bin . '/lib';
-use AccessDatabase;
-use BcryptDecipher;
-use BasedYAMLConfig;
+use DovecotBcryptAuth::AccessDatabase;
+use DovecotBcryptAuth::BcryptDecipher;
+use DovecotBcryptAuth::BasedYAMLConfig;
 
-use Data::Dumper;
+# Load third-party dependencies
 use IO::Handle;
 use Path::Class;
 use Unix::Syslog;
 
 sub auth
 {
-    ## Expects: The username and password from the dovecot IO file desriptor.
-    # Uses all of the subroutines to sanitize the username and password, connect to the database, formulate
-    # a query and grab the users stored password, 
+    ## Expects: The username and password given to us through fd3.
+    # Uses all of the subroutines to determine if the username + password combination is authentic.
     my (
         $clearUsername,
         $clearPassword
     ) = @_;
 
+    ($clearUsername, $clearPassword) = &scrubRawInput($clearUsername, $clearPassword);
 
+    # Load out configuration from the YAML.
     my $config        = new BasedYAMLConfig($configuration);
     my $yaml          = $config->getConfig();
 
+    # Connect and query the DB based on the users credentials.
     my $database      = new AccessDatabase($yaml, $clearUsername, $clearPassword);
     my $dbc           = $database->dbConnect();
     my $hash          = $database->dbQuery($dbc);
 
+    # Create a hash out of the users input password and compare to the hash extracted from the database.
     my $bcrypt        = new BcryptDecipher($hash, $clearPassword);
     my @processedHash = $bcrypt->bcryptExtract();
     my $newHash       = $bcrypt->bcryptEncrypt(@processedHash);
 
+    # Exit with code 1 if the password doesn't match.
     if ( $bcrypt->bcryptCompare($newHash, $hash) == 0 ) {
-        exit($respUnacceptable);
+        exit($RESPONSE{unacceptable});
     }
 }
 
@@ -88,7 +98,7 @@ if ( ($fhIn->opened) && ($fhErr->opened) && ($fhOut->opened)) {
 
     # We will see only 2 params. Check the number of items in the @authData array.
     if ( scalar(@authData) != 2 ) {
-        exit($respMisused);
+        exit($RESPONSE{misused});
     }
 
     # Now we can see if the username + password combo is authentic. We'll check those against
@@ -96,7 +106,7 @@ if ( ($fhIn->opened) && ($fhErr->opened) && ($fhOut->opened)) {
     my $authResponse = &auth(@authData);
 
     # The user looks legitimate. We'll write our return values to fd4.
-    if ($authResponse == $respOk) {
+    if ($authResponse == $RESPONSE{ok}) {
         $fhOut->autoflush(1);
 
         # Generate all of the fields from our config file + 'username' field.
@@ -114,10 +124,10 @@ if ( ($fhIn->opened) && ($fhErr->opened) && ($fhOut->opened)) {
         # Finally we push the parameters out to fd4.
         $fhOut->print($envVar);
     } else {
-        exit($respUnacceptable);
+        exit($RESPONSE{acceptable});
     }
 } else {
-    exit($respMisused);
+    exit($RESPONSE{misused});
 }
 
 # Cleaning up
