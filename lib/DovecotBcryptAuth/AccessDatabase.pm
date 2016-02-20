@@ -38,8 +38,8 @@ sub dbConnect
 
     # Define the connection info to the db. Port and Host can be left with blank, they'll contain an empty string if so.
     my $dsn = 'DBI:' . $driver . ':database=' . $db;
-    $dsn   .= ':host=' . $host if (length($host) > 0);
-    $dsn   .= ':port=' . $port if (length($port) > 0);
+    $dsn   .= ':host=' . $host if (defined($host));
+    $dsn   .= ':port=' . $port if (defined($port));
 
     # Perform the connection
     my $sql = DBI->connect($dsn, $user, $pass, {RaiseError => 1});
@@ -82,7 +82,7 @@ sub dbQuery
         return $password;
     } else {
         $dbh->finish();
-        exit($RESPONSE{unacceptable});
+        exit($DovecotBcryptAuth::RESPONSE{unacceptable});
     }
 }
 
