@@ -26,8 +26,7 @@ passdb {
 }
 
 userdb {
-    driver = static
-    args   = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n
+    driver = prefetch
 }
 
 userdb {
