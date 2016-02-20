@@ -8,6 +8,17 @@ package DovecotBcryptAuth;
 
 use strict;
 use warnings;
+use IO::Handle;
+use Path::Class;
+use Unix::Syslog;
+
+# Find an load dovecot-bcrypt-auth modules
+use FindBin;
+use lib $FindBin::Bin;
+use lib $FindBin::Bin . '/lib';
+use DovecotBcryptAuth::AccessDatabase;
+use DovecotBcryptAuth::BcryptDecipher;
+use DovecotBcryptAuth::BasedYAMLConfig;
 
 # Change this to suit your needs
 our $configuration = '/home/brushdemon/dovecot-bcrypt-auth/etc/dovecot_bcrypt_config.yaml';
@@ -21,19 +32,6 @@ our %RESPONSE = (
     tempFailue   => 111
 );
 
-# Find an load dovecot-bcrypt-auth modules
-use FindBin;
-use lib $FindBin::Bin;
-use lib $FindBin::Bin . '/lib';
-use DovecotBcryptAuth::AccessDatabase;
-use DovecotBcryptAuth::BcryptDecipher;
-use DovecotBcryptAuth::BasedYAMLConfig;
-
-# Load third-party dependencies
-use IO::Handle;
-use Path::Class;
-use Unix::Syslog;
-
 sub auth
 {
     ## Expects: The username and password given to us through fd3.
@@ -43,7 +41,8 @@ sub auth
         $clearPassword
     ) = @_;
 
-    ($clearUsername, $clearPassword) = &scrubRawInput($clearUsername, $clearPassword);
+    $clearUsername = &scrubRawInput($clearUsername);
+    $clearPassword = &scrubRawInput($clearPassword);
 
     # Load out configuration from the YAML.
     my $config        = new BasedYAMLConfig($configuration);
@@ -69,13 +68,11 @@ sub scrubRawInput
 {
     ## Expects: The username and password
     # Removes any 'dangerous' characters from the username and password which may cause SQL injection.
-    my $username = shift;
-    my $password = shift;
+    my $variable = shift;
 
-    $username =~ s/[."\n\r'\$\\`]//g;
-    $password =~ s/[."\n\r'\$\\`]//g;
+    $variable =~ s/[."\n\r'\$\\`]//g;
 
-    return ($username, $password);
+    return $variable;
 }
 
 ###########
