@@ -72,9 +72,6 @@ sub scrubRawInput
 
     $variable =~ s/["\n\r'\$\\`]//g;
 
-    open my $fh, '>>', '/tmp/topkek.txt';
-    print $fh "$variable\n";
-    close $fh;
     return $variable;
 }
 
