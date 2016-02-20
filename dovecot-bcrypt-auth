@@ -29,7 +29,7 @@ our %RESPONSE = (
     ok           => 0,
     unacceptable => 1,
     misused      => 2,
-    tempFailue   => 111
+    tempFailure   => 111,
 );
 
 sub auth
@@ -45,16 +45,16 @@ sub auth
     $clearPassword = &scrubRawInput($clearPassword);
 
     # Load out configuration from the YAML.
-    my $config        = new BasedYAMLConfig($configuration);
+    my $config        = new DovecotBcryptAuth::BasedYAMLConfig($configuration);
     my $yaml          = $config->getConfig();
 
     # Connect and query the DB based on the users credentials.
-    my $database      = new AccessDatabase($yaml, $clearUsername, $clearPassword);
+    my $database      = new DovecotBcryptAuth::AccessDatabase($yaml, $clearUsername, $clearPassword);
     my $dbc           = $database->dbConnect();
     my $hash          = $database->dbQuery($dbc);
 
     # Create a hash out of the users input password and compare to the hash extracted from the database.
-    my $bcrypt        = new BcryptDecipher($hash, $clearPassword);
+    my $bcrypt        = new DovecotBcryptAuth::BcryptDecipher($hash, $clearPassword);
     my @processedHash = $bcrypt->bcryptExtract();
     my $newHash       = $bcrypt->bcryptEncrypt(@processedHash);
 
@@ -70,8 +70,11 @@ sub scrubRawInput
     # Removes any 'dangerous' characters from the username and password which may cause SQL injection.
     my $variable = shift;
 
-    $variable =~ s/[."\n\r'\$\\`]//g;
+    $variable =~ s/["\n\r'\$\\`]//g;
 
+    open my $fh, '>>', '/tmp/topkek.txt';
+    print $fh "$variable\n";
+    close $fh;
     return $variable;
 }
 
@@ -107,7 +110,7 @@ if ( ($fhIn->opened) && ($fhErr->opened) && ($fhOut->opened)) {
         $fhOut->autoflush(1);
 
         # Generate all of the fields from our config file + 'username' field.
-        my $config = new BasedYAMLConfig($configuration);
+        my $config = new DovecotBcryptAuth::BasedYAMLConfig($configuration);
         my $yaml   = $config->getConfig();
         my @envArr = $config->setEnv($yaml, $authData[0]);
 
