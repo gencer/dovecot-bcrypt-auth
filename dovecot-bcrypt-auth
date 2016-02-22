@@ -20,8 +20,8 @@ use DovecotBcryptAuth::AccessDatabase;
 use DovecotBcryptAuth::BcryptDecipher;
 use DovecotBcryptAuth::BasedYAMLConfig;
 
-# Change this to suit your needs
-our $configuration = '/home/brushdemon/dovecot-bcrypt-auth/etc/dovecot_bcrypt_config.yaml';
+# Edit this to the FULL PATH of the configuration yaml.
+my $configuration = '/home/brushdemon/dovecot-bcrypt-auth/etc/dovecot_bcrypt_config.yaml';
 
 # Based on http://cr.yp.to/checkpwd/interface.html recommendations.
 # These are return codes that the checkpassword API knows how to handle.
@@ -79,7 +79,8 @@ sub scrubRawInput
 ####~~~ MAIN EXECUTION
 ###########
 # We need to open a filehandler (descriptor 3). Username and password are provided in fd3. Each field
-# is seperated by a break '\0'.
+# is seperated by a break '\0'. Fd4 is used to send information back to dovecot. It's expecting each
+# field to be delminiated with "\t".
 my $fhIn  = new IO::Handle();
 my $fhErr = new IO::Handle();
 my $fhOut = new IO::Handle();
