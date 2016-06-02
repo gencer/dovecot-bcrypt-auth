@@ -53,7 +53,7 @@ sub bcryptEncrypt
     # password.
     my $self     = shift;
     my $password = $self->{_password};
-    my (my $type, my $cost, my $salt) = @_;
+    my ($type, $cost, $salt) = @_;
 
     my $settings  = $type . $cost . $salt;
 
